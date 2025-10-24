@@ -1,19 +1,63 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import KanbanBoard from './KanbanBoard';
 import TodoList from './TodoList';
 
 const Dashboard = ({ taskCreated, setTaskCreated }) => {
   const [activeTab, setActiveTab] = useState('kanban');
+  const [showNotification, setShowNotification] = useState(false);
 
   const tabs = [
     { id: 'kanban', label: '📊 Kanban Board', icon: '📊' },
     { id: 'todo', label: '✅ To-Do List', icon: '✅' },
   ];
 
+  const handleConvertToTask = (task) => {
+    // Switch to kanban tab
+    setActiveTab('kanban');
+    
+    // Trigger task refresh
+    setTaskCreated(task);
+    
+    // Show notification
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 3000);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
       <div className="max-w-7xl mx-auto">
+        {/* Notification */}
+        <AnimatePresence>
+          {showNotification && (
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              className="fixed top-20 right-6 z-50"
+            >
+              <div className="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span className="font-medium">
+                  Todo converted to task successfully!
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Tab Navigation */}
         <div className="bg-white dark:bg-gray-800 shadow-sm">
           <div className="flex space-x-1 p-2">
@@ -50,7 +94,9 @@ const Dashboard = ({ taskCreated, setTaskCreated }) => {
               setTaskCreated={setTaskCreated}
             />
           )}
-          {activeTab === 'todo' && <TodoList />}
+          {activeTab === 'todo' && (
+            <TodoList onConvertToTask={handleConvertToTask} />
+          )}
         </motion.div>
       </div>
     </div>
