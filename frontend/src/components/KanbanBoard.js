@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import TaskCard from './TaskCard';
 
@@ -77,17 +77,19 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
     destColumn.splice(destination.index, 0, movedTask);
 
     // Optimistic update
-    setTasks({
+    const newTasks = {
       ...tasks,
       [source.droppableId]: sourceColumn,
       ...(source.droppableId !== destination.droppableId && {
         [destination.droppableId]: destColumn,
       }),
-    });
+    };
+    setTasks(newTasks);
 
     // Update backend
     try {
-      await fetch(`${API_URL}/api/tasks/${movedTask._id}/move`, {
+      const taskId = movedTask._id || movedTask.id;
+      const response = await fetch(`${API_URL}/api/tasks/${taskId}/move`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -97,6 +99,11 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
           order: destination.index,
         }),
       });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error('Failed to update task');
+      }
     } catch (err) {
       console.error('Error updating task:', err);
       // Revert on error
@@ -197,18 +204,22 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
                         : 'bg-gray-50 dark:bg-gray-900/50'
                     }`}
                   >
-                    <AnimatePresence>
-                      {tasks[columnId]?.map((task, index) => (
-                        <TaskCard 
-                          key={task._id} 
-                          task={{
-                            ...task,
-                            id: task._id,
-                            date: new Date(task.createdAt).toLocaleDateString()
-                          }} 
-                          index={index} 
-                        />
-                      ))}
+                    <AnimatePresence mode="popLayout">
+                      {tasks[columnId]?.map((task, index) => {
+                        const taskId = task._id || task.id;
+                        return (
+                          <TaskCard 
+                            key={taskId}
+                            task={{
+                              ...task,
+                              id: taskId,
+                              _id: taskId,
+                              date: new Date(task.createdAt || Date.now()).toLocaleDateString()
+                            }} 
+                            index={index} 
+                          />
+                        );
+                      })}
                     </AnimatePresence>
                     {provided.placeholder}
 

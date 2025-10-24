@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Draggable } from 'react-beautiful-dnd';
+import { Draggable } from '@hello-pangea/dnd';
 
 const TaskCard = ({ task, index }) => {
   const getPriorityColor = (priority) => {
@@ -16,8 +16,11 @@ const TaskCard = ({ task, index }) => {
     }
   };
 
+  // Ensure we have a consistent ID
+  const taskId = task._id || task.id;
+
   return (
-    <Draggable draggableId={task.id} index={index}>
+    <Draggable draggableId={String(taskId)} index={index}>
       {(provided, snapshot) => (
         <motion.div
           ref={provided.innerRef}
@@ -27,7 +30,7 @@ const TaskCard = ({ task, index }) => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           whileHover={{ scale: 1.02, boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-          className={`bg-white dark:bg-gray-800 rounded-lg p-4 mb-3 shadow-md cursor-move transition-all ${
+          className={`bg-white dark:bg-gray-800 rounded-lg p-4 mb-3 shadow-md cursor-move transition-all \${
             snapshot.isDragging ? 'rotate-3 shadow-2xl' : ''
           }`}
         >
@@ -36,7 +39,7 @@ const TaskCard = ({ task, index }) => {
               {task.title}
             </h3>
             <span
-              className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
+              className={`px-2 py-1 rounded-full text-xs font-medium \${getPriorityColor(
                 task.priority
               )}`}
             >
@@ -49,7 +52,7 @@ const TaskCard = ({ task, index }) => {
           </p>
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-wrap gap-1">
               {task.tags?.map((tag, idx) => (
                 <span
                   key={idx}
@@ -60,18 +63,21 @@ const TaskCard = ({ task, index }) => {
               ))}
             </div>
 
-            <div className="flex items-center space-x-1">
-              <motion.div
-                whileHover={{ scale: 1.2 }}
-                className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold"
-              >
-                {task.assignee?.[0] || '?'}
-              </motion.div>
-            </div>
+            {task.assignee && (
+              <div className="flex items-center space-x-1">
+                <motion.div
+                  whileHover={{ scale: 1.2 }}
+                  className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                  title={task.assignee}
+                >
+                  {task.assignee?.[0]?.toUpperCase() || '?'}
+                </motion.div>
+              </div>
+            )}
           </div>
 
           <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>ID: {task.id.slice(0, 8)}</span>
+            <span>ID: {String(taskId).slice(-8)}</span>
             <span>{task.date}</span>
           </div>
         </motion.div>
