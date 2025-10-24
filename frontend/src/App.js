@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+// Use environment variable with fallback
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 function App() {
   const [status, setStatus] = useState({
     frontend: 'connected',
@@ -14,7 +17,7 @@ function App() {
   const checkStatus = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/health');
+      const response = await fetch(`${API_URL}/api/health`);
       const data = await response.json();
       
       setStatus({
@@ -43,13 +46,20 @@ function App() {
   }, []);
 
   const getStatusColor = (statusValue) => {
-    return statusValue === 'connected' ? '#4caf50' : '#f44336';
+    if (statusValue === 'connected') return '#4caf50';
+    if (statusValue === 'checking...') return '#ff9800';
+    return '#f44336';
   };
 
   return (
     <div className="App">
       <div className="container">
         <h1>🔌 Connection Status Monitor</h1>
+        
+        <div className="api-info">
+          <span className="label">API:</span>
+          <span className="value">{API_URL}</span>
+        </div>
         
         <div className="status-grid">
           <div className="status-card">
