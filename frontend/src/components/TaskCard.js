@@ -15,8 +15,8 @@ const TaskCard = ({ task, index }) => {
     }
   };
 
-  // Ensure we have a consistent ID
-  const taskId = String(task._id || task.id);
+  // Use task.id which is already normalized as string
+  const taskId = task.id;
 
   return (
     <Draggable draggableId={taskId} index={index}>
@@ -25,13 +25,11 @@ const TaskCard = ({ task, index }) => {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`bg-white dark:bg-gray-800 rounded-lg p-4 mb-3 shadow-md cursor-move transition-all transform hover:scale-[1.02] ${
-            snapshot.isDragging ? 'shadow-2xl rotate-2 scale-105' : ''
+          className={`bg-white dark:bg-gray-800 rounded-lg p-4 mb-3 shadow-md cursor-grab active:cursor-grabbing transition-all ${
+            snapshot.isDragging 
+              ? 'shadow-2xl ring-2 ring-blue-400 rotate-2 scale-105 opacity-90' 
+              : 'hover:shadow-lg hover:scale-[1.02]'
           }`}
-          style={{
-            ...provided.draggableProps.style,
-            transition: snapshot.isDragging ? 'none' : 'all 0.2s ease',
-          }}
         >
           <div className="flex items-start justify-between mb-2">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex-1 pr-2">
@@ -50,8 +48,8 @@ const TaskCard = ({ task, index }) => {
             {task.description}
           </p>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 flex-wrap gap-1">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center flex-wrap gap-1">
               {task.tags?.slice(0, 3).map((tag, idx) => (
                 <span
                   key={idx}
@@ -68,18 +66,16 @@ const TaskCard = ({ task, index }) => {
             </div>
 
             {task.assignee && (
-              <div className="flex items-center space-x-1 ml-2">
-                <div
-                  className="w-7 h-7 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold hover:scale-110 transition-transform"
-                  title={task.assignee}
-                >
-                  {task.assignee?.[0]?.toUpperCase() || '?'}
-                </div>
+              <div
+                className="w-7 h-7 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ml-2"
+                title={task.assignee}
+              >
+                {task.assignee?.[0]?.toUpperCase() || '?'}
               </div>
             )}
           </div>
 
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
             <span className="font-mono">#{taskId.slice(-6)}</span>
             <span>{task.date}</span>
           </div>

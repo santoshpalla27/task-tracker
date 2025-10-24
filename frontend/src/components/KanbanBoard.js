@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import { motion } from 'framer-motion';
 import TaskCard from './TaskCard';
@@ -22,8 +22,7 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch tasks from API
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -36,7 +35,15 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
       const data = await response.json();
       
       if (data.success) {
-        setTasks(data.data);
+        // Normalize task data
+        const normalizedTasks = {};
+        Object.keys(data.data).forEach(columnId => {
+          normalizedTasks[columnId] = data.data[columnId].map(task => ({
+            ...task,
+            id: String(task._id),
+          }));
+        });
+        setTasks(normalizedTasks);
       } else {
         throw new Error(data.error || 'Failed to fetch tasks');
       }
@@ -46,61 +53,68 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [fetchTasks]);
 
-  // Refresh tasks when a new task is created
   useEffect(() => {
     if (taskCreated) {
       fetchTasks();
       setTaskCreated(null);
     }
-  }, [taskCreated, setTaskCreated]);
+  }, [taskCreated, setTaskCreated, fetchTasks]);
 
   const onDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
 
-    // Dropped outside the list
+    console.log('Drag ended:', { source, destination, draggableId });
+
     if (!destination) {
+      console.log('No destination, drag cancelled');
       return;
     }
 
-    // Dropped in the same position
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
     ) {
+      console.log('Dropped in same position');
       return;
     }
 
-    // Get source and destination columns
-    const sourceColumn = Array.from(tasks[source.droppableId]);
-    const destColumn =
-      source.droppableId === destination.droppableId
-        ? sourceColumn
-        : Array.from(tasks[destination.droppableId]);
+    // Create copies of the columns
+    const sourceColumn = [...tasks[source.droppableId]];
+    const destColumn = source.droppableId === destination.droppableId 
+      ? sourceColumn 
+      : [...tasks[destination.droppableId]];
 
-    // Remove from source
+    // Find and remove the task from source
     const [movedTask] = sourceColumn.splice(source.index, 1);
     
+    if (!movedTask) {
+      console.error('Could not find task to move');
+      return;
+    }
+
+    console.log('Moving task:', movedTask);
+
     // Add to destination
     destColumn.splice(destination.index, 0, movedTask);
 
-    // Update state optimistically
+    // Update state immediately (optimistic update)
     const newTasks = {
       ...tasks,
       [source.droppableId]: sourceColumn,
-      ...(source.droppableId !== destination.droppableId && {
-        [destination.droppableId]: destColumn,
-      }),
+      [destination.droppableId]: destColumn,
     };
+    
     setTasks(newTasks);
 
     // Update backend
     try {
+      console.log('Updating backend for task:', draggableId);
       const response = await fetch(`${API_URL}/api/tasks/${draggableId}/move`, {
         method: 'PUT',
         headers: {
@@ -118,9 +132,9 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
         throw new Error(data.error || 'Failed to update task');
       }
       
-      console.log('Task moved successfully:', data);
+      console.log('Task moved successfully on backend');
     } catch (err) {
-      console.error('Error updating task:', err);
+      console.error('Error updating task on backend:', err);
       // Revert on error
       fetchTasks();
     }
@@ -220,23 +234,18 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
                         : 'bg-gray-50 dark:bg-gray-900/50'
                     }`}
                   >
-                    {tasks[columnId]?.map((task, index) => {
-                      const taskId = task._id || task.id;
-                      return (
-                        <TaskCard 
-                          key={taskId}
-                          task={{
-                            ...task,
-                            id: taskId,
-                            _id: taskId,
-                            date: task.createdAt 
-                              ? new Date(task.createdAt).toLocaleDateString()
-                              : new Date().toLocaleDateString()
-                          }} 
-                          index={index} 
-                        />
-                      );
-                    })}
+                    {tasks[columnId]?.map((task, index) => (
+                      <TaskCard 
+                        key={task.id}
+                        task={{
+                          ...task,
+                          date: task.createdAt 
+                            ? new Date(task.createdAt).toLocaleDateString()
+                            : new Date().toLocaleDateString()
+                        }} 
+                        index={index} 
+                      />
+                    ))}
                     {provided.placeholder}
 
                     {(!tasks[columnId] || tasks[columnId].length === 0) && (
