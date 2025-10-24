@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 const ConnectionStatus = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [connections, setConnections] = useState({
@@ -10,29 +12,34 @@ const ConnectionStatus = () => {
   });
 
   useEffect(() => {
-    // Simulate connection checks
     const checkConnections = async () => {
-      // Simulate backend check
-      setTimeout(() => {
-        setConnections(prev => ({
-          ...prev,
-          backend: {
-            status: Math.random() > 0.2 ? 'online' : 'offline',
-            lastCheck: new Date()
-          }
-        }));
-      }, 1000);
+      try {
+        const response = await fetch(`${API_URL}/api/health`);
+        const data = await response.json();
 
-      // Simulate database check
-      setTimeout(() => {
+        if (data.success) {
+          setConnections({
+            frontend: { status: 'online', lastCheck: new Date() },
+            backend: { 
+              status: data.backend === 'connected' ? 'online' : 'offline', 
+              lastCheck: new Date(data.timestamp) 
+            },
+            database: { 
+              status: data.database === 'connected' ? 'online' : 'offline', 
+              lastCheck: new Date(data.timestamp) 
+            },
+          });
+        } else {
+          throw new Error('Health check failed');
+        }
+      } catch (error) {
+        console.error('Connection check failed:', error);
         setConnections(prev => ({
           ...prev,
-          database: {
-            status: Math.random() > 0.3 ? 'online' : 'offline',
-            lastCheck: new Date()
-          }
+          backend: { status: 'offline', lastCheck: new Date() },
+          database: { status: 'offline', lastCheck: new Date() },
         }));
-      }, 1500);
+      }
     };
 
     checkConnections();

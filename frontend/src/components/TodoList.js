@@ -1,39 +1,99 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const TodoList = () => {
-  const [todos, setTodos] = useLocalStorage('todos', []);
+  const [todos, setTodos] = useState([]);
   const [newTodo, setNewTodo] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const addTodo = (e) => {
-    e.preventDefault();
-    if (newTodo.trim()) {
-      setTodos([
-        ...todos,
-        {
-          id: Date.now().toString(),
-          text: newTodo,
-          completed: false,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
-      setNewTodo('');
+  // Fetch todos from API
+  const fetchTodos = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/api/todos`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setTodos(data.data);
+      } else {
+        setError('Failed to fetch todos');
+      }
+    } catch (err) {
+      console.error('Error fetching todos:', err);
+      setError('Failed to connect to server');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const toggleTodo = (id) => {
-    setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      )
-    );
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  const addTodo = async (e) => {
+    e.preventDefault();
+    if (newTodo.trim()) {
+      try {
+        const response = await fetch(`${API_URL}/api/todos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: newTodo }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setTodos([...todos, data.data]);
+          setNewTodo('');
+        }
+      } catch (err) {
+        console.error('Error adding todo:', err);
+        setError('Failed to add todo');
+      }
+    }
   };
 
-  const deleteTodo = (id) => {
-    setTodos(todos.filter((todo) => todo.id !== id));
+  const toggleTodo = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/api/todos/${id}/toggle`, {
+        method: 'PATCH',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setTodos(
+          todos.map((todo) =>
+            todo.id === id ? data.data : todo
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Error toggling todo:', err);
+    }
+  };
+
+  const deleteTodo = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/api/todos/${id}`, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setTodos(todos.filter((todo) => todo.id !== id));
+      }
+    } catch (err) {
+      console.error('Error deleting todo:', err);
+    }
   };
 
   const startEdit = (todo) => {
@@ -41,15 +101,31 @@ const TodoList = () => {
     setEditText(todo.text);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (editText.trim()) {
-      setTodos(
-        todos.map((todo) =>
-          todo.id === editingId ? { ...todo, text: editText } : todo
-        )
-      );
-      setEditingId(null);
-      setEditText('');
+      try {
+        const response = await fetch(`${API_URL}/api/todos/${editingId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: editText }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setTodos(
+            todos.map((todo) =>
+              todo.id === editingId ? data.data : todo
+            )
+          );
+          setEditingId(null);
+          setEditText('');
+        }
+      } catch (err) {
+        console.error('Error updating todo:', err);
+      }
     }
   };
 
@@ -57,6 +133,33 @@ const TodoList = () => {
     setEditingId(null);
     setEditText('');
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading todos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">❌ {error}</p>
+          <button
+            onClick={fetchTodos}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div

@@ -1,63 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable } from 'react-beautiful-dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import TaskCard from './TaskCard';
 
-const initialTasks = {
-  backlog: [
-    {
-      id: '1',
-      title: 'Design landing page',
-      description: 'Create mockups for the new landing page',
-      priority: 'high',
-      tags: ['design', 'UI'],
-      assignee: 'John',
-      date: '2024-01-15',
-    },
-    {
-      id: '2',
-      title: 'Setup authentication',
-      description: 'Implement JWT authentication',
-      priority: 'high',
-      tags: ['backend', 'security'],
-      assignee: 'Sarah',
-      date: '2024-01-16',
-    },
-  ],
-  inProgress: [
-    {
-      id: '3',
-      title: 'Build API endpoints',
-      description: 'Create REST API for user management',
-      priority: 'medium',
-      tags: ['backend', 'API'],
-      assignee: 'Mike',
-      date: '2024-01-14',
-    },
-  ],
-  inReview: [
-    {
-      id: '4',
-      title: 'Write unit tests',
-      description: 'Add test coverage for core modules',
-      priority: 'medium',
-      tags: ['testing'],
-      assignee: 'Emma',
-      date: '2024-01-13',
-    },
-  ],
-  done: [
-    {
-      id: '5',
-      title: 'Setup project repository',
-      description: 'Initialize Git repo and CI/CD',
-      priority: 'low',
-      tags: ['devops'],
-      assignee: 'Alex',
-      date: '2024-01-10',
-    },
-  ],
-};
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const columns = {
   backlog: { title: 'Backlog', color: 'from-gray-500 to-gray-600' },
@@ -67,9 +13,40 @@ const columns = {
 };
 
 const KanbanBoard = () => {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState({
+    backlog: [],
+    inProgress: [],
+    inReview: [],
+    done: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const onDragEnd = (result) => {
+  // Fetch tasks from API
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/api/tasks`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setTasks(data.data);
+      } else {
+        setError('Failed to fetch tasks');
+      }
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
+      setError('Failed to connect to server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const onDragEnd = async (result) => {
     const { source, destination } = result;
 
     if (!destination) return;
@@ -90,6 +67,7 @@ const KanbanBoard = () => {
     const [movedTask] = sourceColumn.splice(source.index, 1);
     destColumn.splice(destination.index, 0, movedTask);
 
+    // Optimistic update
     setTasks({
       ...tasks,
       [source.droppableId]: sourceColumn,
@@ -97,7 +75,52 @@ const KanbanBoard = () => {
         [destination.droppableId]: destColumn,
       }),
     });
+
+    // Update backend
+    try {
+      await fetch(`${API_URL}/api/tasks/${movedTask._id}/move`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: destination.droppableId,
+          order: destination.index,
+        }),
+      });
+    } catch (err) {
+      console.error('Error updating task:', err);
+      // Revert on error
+      fetchTasks();
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading tasks...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">❌ {error}</p>
+          <button
+            onClick={fetchTasks}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -144,7 +167,15 @@ const KanbanBoard = () => {
                   >
                     <AnimatePresence>
                       {tasks[columnId]?.map((task, index) => (
-                        <TaskCard key={task.id} task={task} index={index} />
+                        <TaskCard 
+                          key={task._id} 
+                          task={{
+                            ...task,
+                            id: task._id,
+                            date: new Date(task.createdAt).toLocaleDateString()
+                          }} 
+                          index={index} 
+                        />
                       ))}
                     </AnimatePresence>
                     {provided.placeholder}

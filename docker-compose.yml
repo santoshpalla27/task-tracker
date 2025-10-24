@@ -3,51 +3,66 @@ version: '3.8'
 services:
   mongodb:
     image: mongo:6.0
-    container_name: mongodb
+    container_name: jira_mongodb
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
-      - app-network
+      - jira-network
+    environment:
+      - MONGO_INITDB_DATABASE=jira_dashboard
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   backend:
     build: ./backend
-    container_name: backend
+    container_name: jira_backend
     ports:
       - "5000:5000"
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/connectiondb
       - PORT=5000
+      - NODE_ENV=development
+      - MONGO_URI=mongodb://mongodb:27017/jira_dashboard
+      - ALLOWED_ORIGINS=http://98.93.129.208:3000
+      - API_VERSION=v1
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
-      - app-network
+      - jira-network
     restart: unless-stopped
+    volumes:
+      - ./backend/src:/app/src
+    command: npm run dev
 
   frontend:
     build: ./frontend
-    container_name: frontend
+    container_name: jira_frontend
     ports:
       - "3000:3000"
     environment:
       - REACT_APP_API_URL=http://98.93.129.208:5000
+      - WATCHPACK_POLLING=true
     depends_on:
       - backend
     networks:
-      - app-network
+      - jira-network
     restart: unless-stopped
     stdin_open: true
     tty: true
+    volumes:
+      - ./frontend/src:/app/src
+      - /app/node_modules
 
 networks:
-  app-network:
+  jira-network:
     driver: bridge
 
 volumes:
   mongodb_data:
+    driver: local
