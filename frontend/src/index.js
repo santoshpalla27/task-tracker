@@ -3,12 +3,13 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 
-// Suppress react-beautiful-dnd defaultProps warning in development
+// Suppress specific React warnings in development
 const originalError = console.error;
 console.error = (...args) => {
   if (
     typeof args[0] === 'string' &&
-    args[0].includes('Support for defaultProps will be removed')
+    (args[0].includes('Support for defaultProps will be removed') ||
+     args[0].includes('Function components cannot be given refs'))
   ) {
     return;
   }

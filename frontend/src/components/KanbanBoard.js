@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable } from '@hello-pangea/dnd';
-import { motion, AnimatePresence } from 'framer-motion';
+import { DragDropContext, Droppable } from 'react-beautiful-dnd';
+import { motion } from 'framer-motion';
 import TaskCard from './TaskCard';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -26,18 +26,23 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`${API_URL}/api/tasks`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.success) {
         setTasks(data.data);
-        setError(null);
       } else {
-        setError('Failed to fetch tasks');
+        throw new Error(data.error || 'Failed to fetch tasks');
       }
     } catch (err) {
       console.error('Error fetching tasks:', err);
-      setError('Failed to connect to server');
+      setError(err.message || 'Failed to connect to server');
     } finally {
       setLoading(false);
     }
@@ -56,10 +61,14 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
   }, [taskCreated, setTaskCreated]);
 
   const onDragEnd = async (result) => {
-    const { source, destination } = result;
+    const { source, destination, draggableId } = result;
 
-    if (!destination) return;
+    // Dropped outside the list
+    if (!destination) {
+      return;
+    }
 
+    // Dropped in the same position
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
@@ -67,16 +76,20 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
       return;
     }
 
+    // Get source and destination columns
     const sourceColumn = Array.from(tasks[source.droppableId]);
     const destColumn =
       source.droppableId === destination.droppableId
         ? sourceColumn
         : Array.from(tasks[destination.droppableId]);
 
+    // Remove from source
     const [movedTask] = sourceColumn.splice(source.index, 1);
+    
+    // Add to destination
     destColumn.splice(destination.index, 0, movedTask);
 
-    // Optimistic update
+    // Update state optimistically
     const newTasks = {
       ...tasks,
       [source.droppableId]: sourceColumn,
@@ -88,8 +101,7 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
 
     // Update backend
     try {
-      const taskId = movedTask._id || movedTask.id;
-      const response = await fetch(`${API_URL}/api/tasks/${taskId}/move`, {
+      const response = await fetch(`${API_URL}/api/tasks/${draggableId}/move`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -101,9 +113,12 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
       });
 
       const data = await response.json();
+      
       if (!data.success) {
-        throw new Error('Failed to update task');
+        throw new Error(data.error || 'Failed to update task');
       }
+      
+      console.log('Task moved successfully:', data);
     } catch (err) {
       console.error('Error updating task:', err);
       // Revert on error
@@ -126,10 +141,11 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <p className="text-red-500 mb-4">❌ {error}</p>
+          <div className="text-red-500 mb-4 text-4xl">❌</div>
+          <p className="text-red-500 mb-4 font-semibold">{error}</p>
           <button
             onClick={fetchTasks}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             Retry
           </button>
@@ -144,12 +160,12 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
       animate={{ opacity: 1 }}
       className="p-6"
     >
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
             Project Board
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
             Drag and drop tasks between columns
           </p>
         </div>
@@ -187,7 +203,7 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
               >
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-lg">{column.title}</h3>
-                  <span className="bg-white bg-opacity-30 px-2 py-1 rounded-full text-sm">
+                  <span className="bg-white bg-opacity-30 px-3 py-1 rounded-full text-sm font-bold">
                     {tasks[columnId]?.length || 0}
                   </span>
                 </div>
@@ -198,39 +214,48 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`flex-1 rounded-lg p-3 transition-all min-h-[500px] ${
+                    className={`flex-1 rounded-lg p-3 transition-all duration-200 min-h-[500px] ${
                       snapshot.isDraggingOver
-                        ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-400'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-400 ring-opacity-50'
                         : 'bg-gray-50 dark:bg-gray-900/50'
                     }`}
                   >
-                    <AnimatePresence mode="popLayout">
-                      {tasks[columnId]?.map((task, index) => {
-                        const taskId = task._id || task.id;
-                        return (
-                          <TaskCard 
-                            key={taskId}
-                            task={{
-                              ...task,
-                              id: taskId,
-                              _id: taskId,
-                              date: new Date(task.createdAt || Date.now()).toLocaleDateString()
-                            }} 
-                            index={index} 
-                          />
-                        );
-                      })}
-                    </AnimatePresence>
+                    {tasks[columnId]?.map((task, index) => {
+                      const taskId = task._id || task.id;
+                      return (
+                        <TaskCard 
+                          key={taskId}
+                          task={{
+                            ...task,
+                            id: taskId,
+                            _id: taskId,
+                            date: task.createdAt 
+                              ? new Date(task.createdAt).toLocaleDateString()
+                              : new Date().toLocaleDateString()
+                          }} 
+                          index={index} 
+                        />
+                      );
+                    })}
                     {provided.placeholder}
 
-                    {tasks[columnId]?.length === 0 && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex items-center justify-center h-32 text-gray-400 dark:text-gray-600 text-sm"
-                      >
-                        Drop tasks here
-                      </motion.div>
+                    {(!tasks[columnId] || tasks[columnId].length === 0) && (
+                      <div className="flex flex-col items-center justify-center h-32 text-gray-400 dark:text-gray-600 text-sm">
+                        <svg
+                          className="w-12 h-12 mb-2 opacity-50"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                          />
+                        </svg>
+                        <p>Drop tasks here</p>
+                      </div>
                     )}
                   </div>
                 )}
