@@ -1,5 +1,5 @@
 import React from 'react';
-import { Draggable } from '@hello-pangea/dnd';
+import { Draggable } from 'react-beautiful-dnd';
 
 const TaskCard = ({ task, index }) => {
   const getPriorityColor = (priority) => {
