@@ -12,7 +12,7 @@ const columns = {
   done: { title: 'Done', color: 'from-green-500 to-green-600' },
 };
 
-const KanbanBoard = () => {
+const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
   const [tasks, setTasks] = useState({
     backlog: [],
     inProgress: [],
@@ -31,6 +31,7 @@ const KanbanBoard = () => {
       
       if (data.success) {
         setTasks(data.data);
+        setError(null);
       } else {
         setError('Failed to fetch tasks');
       }
@@ -45,6 +46,14 @@ const KanbanBoard = () => {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  // Refresh tasks when a new task is created
+  useEffect(() => {
+    if (taskCreated) {
+      fetchTasks();
+      setTaskCreated(null);
+    }
+  }, [taskCreated, setTaskCreated]);
 
   const onDragEnd = async (result) => {
     const { source, destination } = result;
@@ -128,13 +137,36 @@ const KanbanBoard = () => {
       animate={{ opacity: 1 }}
       className="p-6"
     >
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Project Board
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400">
-          Drag and drop tasks between columns
-        </p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Project Board
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Drag and drop tasks between columns
+          </p>
+        </div>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={fetchTasks}
+          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          Refresh
+        </motion.button>
       </div>
 
       <DragDropContext onDragEnd={onDragEnd}>

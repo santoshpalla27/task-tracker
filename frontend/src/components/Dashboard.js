@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import KanbanBoard from './KanbanBoard';
 import TodoList from './TodoList';
 
-const Dashboard = () => {
+const Dashboard = ({ taskCreated, setTaskCreated }) => {
   const [activeTab, setActiveTab] = useState('kanban');
 
   const tabs = [
@@ -44,7 +44,12 @@ const Dashboard = () => {
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
         >
-          {activeTab === 'kanban' && <KanbanBoard />}
+          {activeTab === 'kanban' && (
+            <KanbanBoard 
+              taskCreated={taskCreated} 
+              setTaskCreated={setTaskCreated}
+            />
+          )}
           {activeTab === 'todo' && <TodoList />}
         </motion.div>
       </div>
