@@ -41,6 +41,7 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
           normalizedTasks[columnId] = data.data[columnId].map(task => ({
             ...task,
             id: String(task._id),
+            status: columnId, // Ensure status is set
           }));
         });
         setTasks(normalizedTasks);
@@ -65,6 +66,17 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
       setTaskCreated(null);
     }
   }, [taskCreated, setTaskCreated, fetchTasks]);
+
+  const handleTaskDelete = useCallback((taskId) => {
+    // Optimistically remove task from state
+    setTasks(prevTasks => {
+      const newTasks = { ...prevTasks };
+      Object.keys(newTasks).forEach(columnId => {
+        newTasks[columnId] = newTasks[columnId].filter(task => task.id !== taskId);
+      });
+      return newTasks;
+    });
+  }, []);
 
   const onDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
@@ -180,7 +192,7 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
             Project Board
           </h2>
           <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
-            Drag and drop tasks between columns
+            Drag and drop tasks between columns • Hover to delete
           </p>
         </div>
         <motion.button
@@ -243,7 +255,8 @@ const KanbanBoard = ({ taskCreated, setTaskCreated }) => {
                             ? new Date(task.createdAt).toLocaleDateString()
                             : new Date().toLocaleDateString()
                         }} 
-                        index={index} 
+                        index={index}
+                        onDelete={handleTaskDelete}
                       />
                     ))}
                     {provided.placeholder}
