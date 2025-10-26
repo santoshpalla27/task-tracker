@@ -15,36 +15,6 @@ const connectDB = async () => {
   }
 };
 
-const initialUsers = [
-  {
-    username: 'admin',
-    email: 'admin@example.com',
-    password: 'admin123',
-    role: 'admin',
-    firstName: 'Admin',
-    lastName: 'User',
-    isActive: true,
-  },
-  {
-    username: 'john_doe',
-    email: 'john@example.com',
-    password: 'password123',
-    role: 'user',
-    firstName: 'John',
-    lastName: 'Doe',
-    isActive: true,
-  },
-  {
-    username: 'jane_smith',
-    email: 'jane@example.com',
-    password: 'password123',
-    role: 'user',
-    firstName: 'Jane',
-    lastName: 'Smith',
-    isActive: true,
-  },
-];
-
 const seedUsers = async () => {
   try {
     await connectDB();
@@ -58,11 +28,49 @@ const seedUsers = async () => {
       process.exit(0);
     }
 
-    // Create users
-    const createdUsers = await User.insertMany(initialUsers);
+    // Create admin user - using .save() to trigger middleware
+    console.log('Creating admin user...');
+    const admin = new User({
+      username: 'admin',
+      email: 'admin@example.com',
+      password: 'admin123',
+      role: 'admin',
+      firstName: 'Admin',
+      lastName: 'User',
+      isActive: true,
+    });
+    await admin.save();
+    console.log('✅ Admin user created');
 
-    console.log('✅ Users seeded successfully!');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    // Create user 1
+    console.log('Creating user 1...');
+    const user1 = new User({
+      username: 'john_doe',
+      email: 'john@example.com',
+      password: 'password123',
+      role: 'user',
+      firstName: 'John',
+      lastName: 'Doe',
+      isActive: true,
+    });
+    await user1.save();
+    console.log('✅ User 1 created');
+
+    // Create user 2
+    console.log('Creating user 2...');
+    const user2 = new User({
+      username: 'jane_smith',
+      email: 'jane@example.com',
+      password: 'password123',
+      role: 'user',
+      firstName: 'Jane',
+      lastName: 'Smith',
+      isActive: true,
+    });
+    await user2.save();
+    console.log('✅ User 2 created');
+
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📋 Initial Login Credentials:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('👤 Admin Account:');
@@ -76,11 +84,12 @@ const seedUsers = async () => {
     console.log('   Email: jane@example.com');
     console.log('   Password: password123');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`📊 Total users created: ${createdUsers.length}`);
+    console.log(`📊 Total users created: 3`);
 
     process.exit(0);
   } catch (error) {
     console.error(`❌ Error seeding users: ${error.message}`);
+    console.error(error);
     process.exit(1);
   }
 };
