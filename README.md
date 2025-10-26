@@ -88,3 +88,12 @@ docker-compose logs -f backend
 - **Backend**: Node.js with Express
 - **Database**: MongoDB
 - **Containerization**: Docker & Docker Compose
+
+
+
+
+
+
+
+
+

@@ -1,8 +1,10 @@
 const express = require('express');
-const router = express.Router();
 const mongoose = require('mongoose');
+const router = express.Router();
 
-// Health check endpoint
+// @route   GET /api/health
+// @desc    Health check endpoint
+// @access  Public
 router.get('/', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
   
@@ -12,28 +14,6 @@ router.get('/', (req, res) => {
     database: dbStatus,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV,
-  });
-});
-
-// Detailed system info
-router.get('/system', (req, res) => {
-  res.json({
-    success: true,
-    system: {
-      platform: process.platform,
-      nodeVersion: process.version,
-      memory: {
-        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB',
-        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + ' MB',
-      },
-      uptime: Math.round(process.uptime()) + ' seconds',
-    },
-    database: {
-      status: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-      host: mongoose.connection.host,
-      name: mongoose.connection.name,
-    },
   });
 });
 
