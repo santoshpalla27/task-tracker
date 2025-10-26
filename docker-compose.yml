@@ -28,7 +28,7 @@ services:
       - PORT=5000
       - NODE_ENV=development
       - MONGO_URI=mongodb://mongodb:27017/jira_dashboard
-      - ALLOWED_ORIGINS=http://98.93.129.208:3000
+      - ALLOWED_ORIGINS=http://18.206.179.34:3000
       - API_VERSION=v1
     depends_on:
       mongodb:
@@ -46,7 +46,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://98.93.129.208:5000
+      - REACT_APP_API_URL=http://18.206.179.34:5000
       - WATCHPACK_POLLING=true
     depends_on:
       - backend
