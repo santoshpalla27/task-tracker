@@ -17,7 +17,10 @@ const connectDB = async () => {
 
 const seedUsers = async () => {
   try {
-    await connectDB();
+    // Only connect if not already connected (for standalone execution)
+    if (mongoose.connection.readyState === 0) {
+      await connectDB();
+    }
 
     // Check if users already exist
     const existingUsers = await User.countDocuments();
@@ -25,7 +28,7 @@ const seedUsers = async () => {
     if (existingUsers > 0) {
       console.log('⚠️  Users already exist. Skipping seed...');
       console.log('💡 To reseed, delete existing users first.');
-      process.exit(0);
+      return; // Return instead of process.exit when called from server
     }
 
     // Create admin user - using .save() to trigger middleware
@@ -86,11 +89,16 @@ const seedUsers = async () => {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`📊 Total users created: 3`);
 
-    process.exit(0);
+    // Only exit if run directly, not when imported
+    if (require.main === module) {
+      process.exit(0);
+    }
   } catch (error) {
     console.error(`❌ Error seeding users: ${error.message}`);
     console.error(error);
-    process.exit(1);
+    if (require.main === module) {
+      process.exit(1);
+    }
   }
 };
 

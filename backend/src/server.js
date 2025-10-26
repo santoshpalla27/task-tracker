@@ -66,6 +66,7 @@ const initializeApp = async () => {
 
 // Wait for MongoDB connection before initializing
 mongoose.connection.once('open', () => {
+  console.log('📡 MongoDB connection established');
   initializeApp();
 });
 
@@ -120,21 +121,19 @@ app.get('/api/routes', (req, res) => {
   
   app._router.stack.forEach((middleware) => {
     if (middleware.route) {
-      // Routes registered directly on the app
       routes.push({
         path: middleware.route.path,
         methods: Object.keys(middleware.route.methods).map(m => m.toUpperCase()),
       });
     } else if (middleware.name === 'router') {
-      // Router middleware
       middleware.handle.stack.forEach((handler) => {
         if (handler.route) {
           const path = middleware.regexp.source
             .replace('\/?', '')
             .replace('(?=\/|\$)', '')
             .replace(/\\\//g, '/')
-            .replace(/\\^/g, '')
-            .replace(/\\$/g, '');
+            .replace(/\^/g, '')
+            .replace(/\$/g, '');
           
           routes.push({
             path: path + handler.route.path,
