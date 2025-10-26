@@ -3,14 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const connectDB = require('./src/config/database');
-const errorHandler = require('./src/middleware/errorHandler');
-const logger = require('./src/middleware/logger');
+const mongoose = require('mongoose');
 
-// Initialize express FIRST
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Middleware BEFORE routes
+// Middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
@@ -23,21 +21,25 @@ app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 } else {
-  app.use(logger);
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+  });
 }
 
-// Import routes AFTER middleware
-const healthRoutes = require('./src/routes/health');
-const authRoutes = require('./src/routes/auth');
-const userRoutes = require('./src/routes/users');
-const taskRoutes = require('./src/routes/tasks');
-const todoRoutes = require('./src/routes/todos');
+// MongoDB connection - using the existing database config
+mongoose.connect(process.env.MONGO_URI || 'mongodb://mongodb:27017/jira_dashboard', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => {
+  console.log('✅ MongoDB connected successfully');
+})
+.catch(err => console.error('❌ MongoDB connection error:', err));
 
 // Connect to database and seed users if needed
 const initializeApp = async () => {
   try {
-    await connectDB();
-    
     // Check if users exist, if not, seed them
     const User = require('./src/models/User');
     const userCount = await User.countDocuments();
@@ -72,14 +74,50 @@ app.get('/', (req, res) => {
   });
 });
 
-// Mount routes
-app.use('/api/health', healthRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/todos', todoRoutes);
+// Load routes
+console.log('📦 Loading routes...');
 
-// Debug route to list all registered routes
+try {
+  const healthRoutes = require('./src/routes/health');
+  app.use('/api/health', healthRoutes);
+  console.log('✅ Health routes mounted at /api/health');
+} catch (error) {
+  console.error('❌ Error loading health routes:', error.message);
+}
+
+try {
+  const authRoutes = require('./src/routes/auth');
+  app.use('/api/auth', authRoutes);
+  console.log('✅ Auth routes mounted at /api/auth');
+} catch (error) {
+  console.error('❌ Error loading auth routes:', error.message);
+}
+
+try {
+  const userRoutes = require('./src/routes/users');
+  app.use('/api/users', userRoutes);
+  console.log('✅ User routes mounted at /api/users');
+} catch (error) {
+  console.error('❌ Error loading user routes:', error.message);
+}
+
+try {
+  const taskRoutes = require('./src/routes/tasks');
+  app.use('/api/tasks', taskRoutes);
+  console.log('✅ Task routes mounted at /api/tasks');
+} catch (error) {
+  console.error('❌ Error loading task routes:', error.message);
+}
+
+try {
+  const todoRoutes = require('./src/routes/todos');
+  app.use('/api/todos', todoRoutes);
+  console.log('✅ Todo routes mounted at /api/todos');
+} catch (error) {
+  console.error('❌ Error loading todo routes:', error.message);
+}
+
+// List all routes (debug)
 app.get('/api/routes', (req, res) => {
   const routes = [];
   app._router.stack.forEach((middleware) => {
@@ -89,22 +127,32 @@ app.get('/api/routes', (req, res) => {
         methods: Object.keys(middleware.route.methods),
       });
     } else if (middleware.name === 'router') {
+      const routerPath = middleware.regexp.source
+        .replace('\\/?', '')
+        .replace('(?=\\/|\$)', '')
+        .replace(/\\\//g, '/');
+      
       middleware.handle.stack.forEach((handler) => {
         if (handler.route) {
+          const fullPath = routerPath + handler.route.path;
           routes.push({
-            path: handler.route.path,
+            path: fullPath.replace(/\\/g, ''),
             methods: Object.keys(handler.route.methods),
           });
         }
       });
     }
   });
-  res.json({ routes });
+  res.json({ 
+    success: true,
+    count: routes.length,
+    routes 
+  });
 });
 
 // 404 handler
 app.use((req, res) => {
-  console.log(`❌ 404 - Route not found: ${req.method} ${req.originalUrl}`);
+  console.log(`❌ 404 - Not Found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     success: false,
     error: 'Route not found',
@@ -113,23 +161,24 @@ app.use((req, res) => {
   });
 });
 
-// Error handler (must be last)
-app.use(errorHandler);
-
-// Start server
-const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🔗 API URL: http://localhost:${PORT}`);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(err.statusCode || 500).json({
+    success: false,
+    error: err.message || 'Server Error',
+  });
 });
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-  console.error(`❌ Unhandled Rejection: ${err.message}`);
-  server.close(() => process.exit(1));
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 API URL: http://localhost:${PORT}`);
+  console.log(`🔗 Health: http://localhost:${PORT}/api/health`);
+  console.log(`🔗 Routes: http://localhost:${PORT}/api/routes`);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 });
 
 module.exports = app;
