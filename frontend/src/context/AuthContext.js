@@ -14,19 +14,47 @@ export const useAuth = () => {
   return context;
 };
 
+// Configure axios defaults
+axios.defaults.baseURL = API_URL;
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
-  // Configure axios defaults
+  // Configure axios interceptors
   useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
-    }
-  }, [token]);
+    // Request interceptor
+    const requestInterceptor = axios.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // Response interceptor
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          // Token expired or invalid
+          logout();
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.request.eject(requestInterceptor);
+      axios.interceptors.response.eject(responseInterceptor);
+    };
+  }, []);
 
   // Check if token is valid and load user
   useEffect(() => {
@@ -41,7 +69,7 @@ export const AuthProvider = ({ children }) => {
           }
 
           // Load user data
-          const response = await axios.get(`${API_URL}/api/auth/me`);
+          const response = await axios.get('/api/auth/me');
           if (response.data.success) {
             setUser(response.data.data);
           }
@@ -58,7 +86,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/login`, {
+      const response = await axios.post('/api/auth/login', {
         email,
         password,
       });
@@ -78,7 +106,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/register`, userData);
+      const response = await axios.post('/api/auth/register', userData);
 
       if (response.data.success) {
         const { user, token } = response.data.data;
@@ -97,12 +125,11 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
   };
 
   const updateProfile = async (profileData) => {
     try {
-      const response = await axios.put(`${API_URL}/api/auth/profile`, profileData);
+      const response = await axios.put('/api/auth/profile', profileData);
       if (response.data.success) {
         setUser(response.data.data);
         return { success: true };
@@ -114,8 +141,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const changePassword = async (currentPassword, newPassword) => {
-    try {
-      const response = await axios.put(`${API_URL}/api/auth/change-password`, {
+    try {.
+      const response = await axios.put('/api/auth/change-password', {
         currentPassword,
         newPassword,
       });

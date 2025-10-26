@@ -37,7 +37,7 @@ const UserManagement = () => {
         ...(filters.isActive && { isActive: filters.isActive }),
       });
 
-      const response = await axios.get(`${API_URL}/api/users?${params}`);
+      const response = await axios.get(`/api/users?${params}`);
       
       if (response.data.success) {
         setUsers(response.data.data);

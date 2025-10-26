@@ -4,11 +4,11 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { authenticate, authorize } = require('../middleware/auth');
 
-// All routes require authentication and admin role
+// Apply authentication to all user routes
 router.use(authenticate);
 router.use(authorize('admin'));
 
-// @route   GET /api/users
+// @frontend\src\components\ProtectedRoute.js   GET /api/users
 // @desc    Get all users
 // @access  Private/Admin
 router.get('/', async (req, res, next) => {

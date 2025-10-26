@@ -27,7 +27,7 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// MongoDB connection - using the existing database config
+// MongoDB connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://mongodb:27017/jira_dashboard', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -40,7 +40,6 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://mongodb:27017/jira_dashboar
 // Connect to database and seed users if needed
 const initializeApp = async () => {
   try {
-    // Check if users exist, if not, seed them
     const User = require('./src/models/User');
     const userCount = await User.countDocuments();
     
@@ -128,22 +127,22 @@ app.get('/api/routes', (req, res) => {
       });
     } else if (middleware.name === 'router') {
       const routerPath = middleware.regexp.source
-        .replace('\\/?', '')
-        .replace('(?=\\/|\$)', '')
-        .replace(/\\\//g, '/');
+        .replace('\/?', '')
+        .replace('(?=\/|\$)', '')
+        .replace(/\\//g, '/');
       
       middleware.handle.stack.forEach((handler) => {
         if (handler.route) {
           const fullPath = routerPath + handler.route.path;
           routes.push({
-            path: fullPath.replace(/\\/g, ''),
+            path: fullPath.replace(/\/g, ''),
             methods: Object.keys(handler.route.methods),
           });
         }
       });
     }
   });
-  res.json({ 
+  res.json({
     success: true,
     count: routes.length,
     routes 
@@ -174,7 +173,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 API URL: http://localhost:${PORT}`);
   console.log(`🔗 Health: http://localhost:${PORT}/api/health`);
   console.log(`🔗 Routes: http://localhost:${PORT}/api/routes`);
