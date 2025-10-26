@@ -1,9 +1,13 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// JWT Secret (should be in .env)
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+// JWT Secret - MUST be set in environment
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production-min-32-chars';
 const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
+
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  WARNING: JWT_SECRET not set in environment variables!');
+}
 
 // Generate JWT Token
 const generateToken = (userId, role) => {
@@ -17,6 +21,7 @@ const verifyToken = (token) => {
   try {
     return jwt.verify(token, JWT_SECRET);
   } catch (error) {
+    console.error('Token verification failed:', error.message);
     return null;
   }
 };
@@ -25,7 +30,16 @@ const verifyToken = (token) => {
 const authenticate = async (req, res, next) => {
   try {
     // Get token from header
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        error: 'Access denied. No token provided.',
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
 
     if (!token) {
       return res.status(401).json({

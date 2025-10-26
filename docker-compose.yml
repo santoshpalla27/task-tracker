@@ -48,6 +48,8 @@ services:
     environment:
       - REACT_APP_API_URL=http://18.206.179.34:5000
       - WATCHPACK_POLLING=true
+      - WDS_SOCKET_PORT=0  # Add this line
+      - CHOKIDAR_USEPOLLING=true  # Add this line
     depends_on:
       - backend
     networks:
