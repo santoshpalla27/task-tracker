@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
 
 const TaskModal = ({ isOpen, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -13,6 +14,43 @@ const TaskModal = ({ isOpen, onClose, onSubmit }) => {
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Fetch users when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      // Try the public list endpoint first
+      const response = await axios.get('/api/users/list');
+      
+      if (response.data.success) {
+        setUsers(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      // If that fails, try the admin endpoint (for admins)
+      try {
+        const adminResponse = await axios.get('/api/users', {
+          params: { limit: 100, isActive: 'true' }
+        });
+        if (adminResponse.data.success) {
+          setUsers(adminResponse.data.data);
+        }
+      } catch (adminError) {
+        console.error('Error fetching users (admin):', adminError);
+        setUsers([]);
+      }
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -188,10 +226,10 @@ const TaskModal = ({ isOpen, onClose, onSubmit }) => {
                     onChange={handleChange}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   >
-                    <option value="backlog">Backlog</option>
-                    <option value="inProgress">In Progress</option>
-                    <option value="inReview">In Review</option>
-                    <option value="done">Done</option>
+                    <option value="backlog">📋 Backlog</option>
+                    <option value="inProgress">⚡ In Progress</option>
+                    <option value="inReview">👀 In Review</option>
+                    <option value="done">✅ Done</option>
                   </select>
                 </div>
 
@@ -205,9 +243,9 @@ const TaskModal = ({ isOpen, onClose, onSubmit }) => {
                     onChange={handleChange}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
+                    <option value="low">🟢 Low</option>
+                    <option value="medium">🟡 Medium</option>
+                    <option value="high">🔴 High</option>
                   </select>
                 </div>
               </div>
@@ -215,16 +253,62 @@ const TaskModal = ({ isOpen, onClose, onSubmit }) => {
               {/* Assignee */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Assignee
+                  Assign To
                 </label>
-                <input
-                  type="text"
-                  name="assignee"
-                  value={formData.assignee}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="Enter assignee name"
-                />
+                {loadingUsers ? (
+                  <div className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
+                    <svg
+                      className="animate-spin h-5 w-5 text-gray-500"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    <span className="ml-2 text-gray-500 dark:text-gray-400">Loading users...</span>
+                  </div>
+                ) : users.length > 0 ? (
+                  <select
+                    name="assignee"
+                    value={formData.assignee}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="">Select user (optional)</option>
+                    {users.map((user) => (
+                      <option key={user._id} value={user.username}>
+                        {user.fullName || user.username} ({user.email})
+                        {user.role === 'admin' ? ' 👑' : ''}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    name="assignee"
+                    value={formData.assignee}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Enter assignee name (optional)"
+                  />
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {users.length > 0 
+                    ? `${users.length} users available` 
+                    : 'No users loaded - enter name manually or leave blank'}
+                </p>
               </div>
 
               {/* Tags */}
@@ -238,7 +322,7 @@ const TaskModal = ({ isOpen, onClose, onSubmit }) => {
                   value={formData.tags}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="Enter tags separated by commas (e.g., design, UI, frontend)"
+                  placeholder="frontend, backend, urgent (comma separated)"
                 />
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Separate tags with commas

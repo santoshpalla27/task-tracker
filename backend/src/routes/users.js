@@ -4,7 +4,27 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { authenticate, authorize } = require('../middleware/auth');
 
-// Apply authentication to all user routes
+// @frontend\src\components\ProtectedRoute.js   GET /api/users/list
+// @desc    Get list of users for task assignment (available to all authenticated users)
+// @access  Private
+router.get('/list', authenticate, async (req, res, next) => {
+  try {
+    const users = await User.find({ isActive: true })
+      .select('username email firstName lastName role')
+      .sort({ username: 1 })
+      .limit(100);
+
+    res.json({
+      success: true,
+      data: users,
+      count: users.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Apply authentication and admin authorization to all other routes
 router.use(authenticate);
 router.use(authorize('admin'));
 
